@@ -15,6 +15,8 @@ const config: Phaser.Types.Core.GameConfig = {
     default: "matter",
     matter: {
       gravity: { x: 0, y: 1 }, // y축 중력값을 1로 설정 (필요시 조정)
+      positionIterations: 20, // 기본 6, 높일수록 충돌 정확도↑
+      velocityIterations: 20, // 기본 4, 높일수록 충돌 정확도↑
       debug: {
         showBody: true,
         showStaticBody: true,
