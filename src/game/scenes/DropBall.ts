@@ -1,7 +1,11 @@
 import Phaser from "phaser";
+import { BallInfo } from "../BallInfo";
 
 export default class DropBallScene extends Phaser.Scene {
-  private balls: Array<{ index: number; ball: MatterJS.BodyType }> = [];
+  private balls: BallInfo[] = [];
+  // 도착한 공 정보 저장 (rank 포함)
+  private finishedBalls: BallInfo[] = [];
+
   private pins: MatterJS.BodyType[] = [];
   private results: number[] = [];
   private ballCount: number = 10;
@@ -50,9 +54,6 @@ export default class DropBallScene extends Phaser.Scene {
   // 실시간 랭킹 텍스트
   private rankingText!: Phaser.GameObjects.Text;
 
-  // 도착한 공 정보 저장
-  private finishedBalls: { idx: number; ball: MatterJS.BodyType }[] = [];
-
   // 공 이름 및 이름 텍스트 저장
   private ballNames: string[] = [];
   private ballNameTexts: { index: number; text: Phaser.GameObjects.Text }[] =
@@ -62,6 +63,9 @@ export default class DropBallScene extends Phaser.Scene {
   private targetZoom: number = 0.5;
   private zoomSpeed: number = 0.02;
 
+  // 결과 표시 플래그
+  private resultShown: boolean = false;
+
   preload() {}
 
   create() {
@@ -69,11 +73,21 @@ export default class DropBallScene extends Phaser.Scene {
     const width = window.innerWidth;
     const height = window.innerHeight;
     this.scale.resize(width, height);
-    this.matter.world.setBounds(0, 0, this.worldSize.width, this.worldSize.height);
+    this.matter.world.setBounds(
+      0,
+      0,
+      this.worldSize.width,
+      this.worldSize.height
+    );
 
     this.cameras.main.setBackgroundColor("#222");
     this.cameras.main.setZoom(0.5);
-    this.cameras.main.setBounds(0, 0, this.worldSize.width, this.worldSize.height);
+    this.cameras.main.setBounds(
+      0,
+      0,
+      this.worldSize.width,
+      this.worldSize.height
+    );
 
     this.makeWalls();
 
@@ -450,7 +464,7 @@ export default class DropBallScene extends Phaser.Scene {
         friction: 0.01,
         frictionAir: 0.002,
       });
-      this.balls.push({ index: i, ball });
+      this.balls.push({ index: i, ball, rank: 0 });
       // 공 이름 지정 (입력값 우선, 없으면 번호)
       const name = this.ballNames[i] || `${i + 1}번`;
       // 이름 텍스트 생성 및 저장 (index와 함께)
@@ -532,13 +546,18 @@ export default class DropBallScene extends Phaser.Scene {
         ball.position &&
         ball.position.y > this.worldSize.height - 100
       ) {
-        // 도착한 공을 finishedBalls에 저장
-        this.finishedBalls.push({ idx: index + 1, ball });
+        // 도착한 공을 finishedBalls에 저장 (rank 추가)
+        const rank = this.finishedBalls.length + 1;
+        this.finishedBalls.push({ index: index + 1, ball, rank });
         // 이름 텍스트도 숨김
         const nameTextObj = this.ballNameTexts.find((t) => t.index === index);
         if (nameTextObj) nameTextObj.text.setVisible(false);
         this.matter.world.remove(ball);
-        return false; // 배열에서 제거
+        if (this.finishedBalls.length === 1 && !this.resultShown) {
+          this.resultShown = true;
+          this.showResult();
+        }
+        return false;
       }
       return true;
     });
@@ -584,23 +603,29 @@ export default class DropBallScene extends Phaser.Scene {
         y: ball.position.y,
         finished: false,
         name: this.ballNames[index] || `${index + 1}번`,
+        rank: 0,
       }));
-      const finishedBalls = this.finishedBalls.map((item, _i) => {
-        const idx = item.idx - 1;
+      // finishedBalls에 rank 포함
+      const finishedBalls = this.finishedBalls.map((item) => {
+        const index = item.index - 1;
         return {
-          idx: item.idx,
+          index: item.index,
           y: item.ball.position.y,
           finished: true,
-          name: this.ballNames[idx] || `${item.idx}번`,
+          name: this.ballNames[index] || `${item.index}번`,
+          rank: item.rank,
         };
       });
-      const allBalls = [...liveBalls, ...finishedBalls];
+      // 도착한 공은 rank 순서대로, 아직 도착 전 공은 y값 순서대로
+      const allBalls = [
+        ...finishedBalls.sort((a, b) => a.rank - b.rank),
+        ...liveBalls.sort((a, b) => b.y - a.y),
+      ];
       const ranking = allBalls
-        .sort((a, b) => b.y - a.y)
-        .map((item, i) =>
+        .map((item) =>
           item.finished
-            ? `#${i + 1} ${item.name} (도착)`
-            : `#${i + 1} ${item.name}`
+            ? `#${item.rank} ${item.name} (도착)`
+            : `#${finishedBalls.length + 1} ${item.name}`
         )
         .join("\n");
       this.rankingText.setText("실시간 랭킹\n" + ranking);
@@ -715,18 +740,12 @@ export default class DropBallScene extends Phaser.Scene {
   }
 
   showResult() {
-    // 결과 표시 (순서대로)
-    this.add.text(
-      320,
-      30 + this.results.length * 22,
-      `${this.results.length}등: ${
-        this.results[this.results.length - 1]
-      }번 슬롯`,
-      {
-        font: "18px Arial",
-        color: "#fff",
-      }
-    );
+    // 최종 1위 강조 표시
+    const winner = this.results[0];
+    this.add.text(320, 30, `🏆 ${winner}번 슬롯이 1위입니다!`, {
+      font: "60px Arial",
+      color: "#fff",
+    });
     // 게임 종료 시 입력 UI 다시 표시
     this.showNameInputUI();
   }
@@ -750,7 +769,9 @@ export default class DropBallScene extends Phaser.Scene {
     document.body.appendChild(nameInputLabel);
     // 입력창
     const nameInputBox = document.createElement("textarea");
-    nameInputBox.value = "공1,공2,공3,공4,공5,공6,공7,공8,공9,공10";
+    //20개 공 기본 추가
+    nameInputBox.value =
+      "공1,공2,공3,공4,공5,공6,공7,공8,공9,공10,공11,공12,공13,공14,공15,공16,공17,공18,공19,공20";
     nameInputBox.placeholder = "예: 공1,공2,공3";
     nameInputBox.style.position = "absolute";
     nameInputBox.style.left = rect.left + 24 + "px";
@@ -801,6 +822,7 @@ export default class DropBallScene extends Phaser.Scene {
         this.ballNameTexts = [];
         this.finishedBalls = [];
         this.results = [];
+        this.resultShown = false; // 게임 재시작 시 결과 플래그 초기화
         this.dropBallsMatter();
         // UI 제거
         nameInputBox.remove();
