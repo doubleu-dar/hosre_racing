@@ -47,8 +47,6 @@ export default class DropBallScene extends Phaser.Scene {
   private cameraFollowLeader: boolean = true;
   private cameraFollowTimeout?: ReturnType<typeof setTimeout>;
 
-  // cameraFollowLeader 상태 디버그 텍스트
-  private cameraFollowText!: Phaser.GameObjects.Text;
   // 실시간 랭킹 텍스트
   private rankingText!: Phaser.GameObjects.Text;
 
@@ -78,37 +76,6 @@ export default class DropBallScene extends Phaser.Scene {
       this.worldSize.height
     );
 
-    // 안내 텍스트
-    this.add.text(20, 20, "클릭하면 공이 떨어집니다!", {
-      font: "20px Arial",
-      color: "#fff",
-    });
-
-    // 볼 추가 버튼 생성 (Phaser Text는 backgroundColor만 지원, borderRadius 제거)
-    this.add
-      .text(20, 60, "공 추가", {
-        font: "20px Arial",
-        color: "#222",
-        backgroundColor: "#fff",
-        padding: { left: 10, right: 10, top: 5, bottom: 5 },
-      })
-      .setInteractive({ useHandCursor: true })
-      .on(
-        "pointerdown",
-        (
-          _pointer: Phaser.Input.Pointer,
-          _localX: number,
-          _localY: number,
-          event: Phaser.Types.Input.EventData
-        ) => {
-          event.stopPropagation(); // 이벤트 전파 중단
-          if (!this.gameStarted) {
-            this.gameStarted = true;
-          }
-          this.dropBallsMatter();
-          this.cameraFollowLeader = true;
-        }
-      );
     this.makeWalls();
 
     // 핀(장애물) 배치 (Matter Physics)
@@ -229,19 +196,10 @@ export default class DropBallScene extends Phaser.Scene {
         .setDepth(-1);
     }
 
-    // cameraFollowLeader 상태 디버그 텍스트
-    this.cameraFollowText = this.add
-      .text(20, 100, "", {
-        font: "20px Arial",
-        color: "#ff0",
-        backgroundColor: "#222",
-        padding: { left: 8, right: 8, top: 4, bottom: 4 },
-      })
-      .setScrollFactor(0);
     // 실시간 랭킹 텍스트 (우측 상단)
     this.rankingText = this.add
-      .text(this.cameras.main.width - 220, 20, "", {
-        font: "20px Arial",
+      .text(this.cameras.main.width - 20, -100, "", {
+        font: "50px Arial",
         color: "#fff",
         backgroundColor: "#222",
         padding: { left: 10, right: 10, top: 5, bottom: 5 },
@@ -249,6 +207,86 @@ export default class DropBallScene extends Phaser.Scene {
       })
       .setScrollFactor(0)
       .setDepth(1000);
+
+    // 공 이름 입력 UI 관련 (HTML 요소, 멤버 변수 제거)
+    // HTML 입력창, 라벨, 버튼 생성 (캔버스 좌측 하단)
+    const canvas = this.game.canvas;
+    const rect = canvas.getBoundingClientRect();
+    // 라벨
+    const nameInputLabel = document.createElement("label");
+    nameInputLabel.innerText = "공 이름을 입력하세요 (콤마로 구분):";
+    nameInputLabel.style.position = "absolute";
+    nameInputLabel.style.left = rect.left + 24 + "px";
+    nameInputLabel.style.top = rect.bottom - 120 + "px";
+    nameInputLabel.style.fontSize = "22px";
+    nameInputLabel.style.color = "#fff";
+    nameInputLabel.style.background = "rgba(34,34,34,0.92)";
+    nameInputLabel.style.padding = "8px 12px 4px 12px";
+    nameInputLabel.style.borderRadius = "8px 8px 0 0";
+    nameInputLabel.style.zIndex = "1000";
+    document.body.appendChild(nameInputLabel);
+    // 입력창
+    const nameInputBox = document.createElement("textarea");
+    nameInputBox.value = "공1,공2,공3,공4,공5,공6,공7,공8,공9,공10";
+    nameInputBox.placeholder = "예: 공1,공2,공3";
+    nameInputBox.style.position = "absolute";
+    nameInputBox.style.left = rect.left + 24 + "px";
+    nameInputBox.style.top = rect.bottom - 70 + "px";
+    nameInputBox.style.width = "320px";
+    nameInputBox.style.height = "80px";
+    nameInputBox.style.fontSize = "22px";
+    nameInputBox.style.borderRadius = "0 0 0 0";
+    nameInputBox.style.padding = "8px";
+    nameInputBox.style.background = "#333";
+    nameInputBox.style.color = "#fff";
+    nameInputBox.style.border = "none";
+    nameInputBox.style.outline = "none";
+    nameInputBox.style.zIndex = "1000";
+    nameInputBox.style.resize = "none";
+    nameInputBox.style.overflowY = "auto";
+    nameInputBox.style.whiteSpace = "pre-wrap";
+    nameInputBox.style.wordBreak = "break-all";
+    nameInputBox.wrap = "soft";
+    document.body.appendChild(nameInputBox);
+    // 버튼
+    const nameInputBtn = document.createElement("button");
+    nameInputBtn.innerText = "시작";
+    nameInputBtn.style.position = "absolute";
+    nameInputBtn.style.left = rect.left + 24 + 340 + "px";
+    nameInputBtn.style.top = rect.bottom - 70 + "px";
+    nameInputBtn.style.height = "42px";
+    nameInputBtn.style.fontSize = "22px";
+    nameInputBtn.style.background = "#fff";
+    nameInputBtn.style.color = "#222";
+    nameInputBtn.style.border = "none";
+    nameInputBtn.style.borderRadius = "0 8px 8px 0";
+    nameInputBtn.style.padding = "0 24px";
+    nameInputBtn.style.cursor = "pointer";
+    nameInputBtn.style.zIndex = "1000";
+    document.body.appendChild(nameInputBtn);
+    // 버튼 클릭 시 이름 적용 및 UI 제거
+    nameInputBtn.onclick = () => {
+      const names = (nameInputBox.value || "")
+        .split(",")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+      if (names.length > 0) {
+        this.ballNames = names;
+        this.ballCount = names.length;
+        this.balls = [];
+        this.ballNameTexts.forEach((t) => t.destroy());
+        this.ballNameTexts = [];
+        this.finishedBalls = [];
+        this.results = [];
+        this.dropBallsMatter();
+        // UI 제거
+        nameInputBox.remove();
+        nameInputLabel.remove();
+        nameInputBtn.remove();
+        this.cameraFollowLeader = true;
+        this.gameStarted = true;
+      }
+    };
   }
   makeFunnels() {
     const funnel2LeftGuide = this.matter.add.rectangle(
@@ -484,13 +522,12 @@ export default class DropBallScene extends Phaser.Scene {
         frictionAir: 0.002,
       });
       this.balls.push(ball);
-      // 공 이름 지정 (예: 1번, 2번, ...)
-      const name = `${i + 1}번`;
-      this.ballNames.push(name);
+      // 공 이름 지정 (입력값 우선, 없으면 번호)
+      const name = this.ballNames[i] || `${i + 1}번`;
       // 이름 텍스트 생성 및 저장
       const nameText = this.add
-        .text(ball.position.x, ball.position.y - this.ballRadius - 18, name, {
-          font: "16px Arial",
+        .text(ball.position.x, ball.position.y - this.ballRadius, name, {
+          font: "30px Arial",
           color: "#fff",
           backgroundColor: "#222",
           padding: { left: 4, right: 4, top: 2, bottom: 2 },
@@ -559,7 +596,6 @@ export default class DropBallScene extends Phaser.Scene {
         // 이름 텍스트도 숨김
         if (this.ballNameTexts[i]) this.ballNameTexts[i].setVisible(false);
         this.matter.world.remove(ball);
-        this.showResult();
         return false; // 배열에서 제거
       }
       return true;
@@ -597,12 +633,6 @@ export default class DropBallScene extends Phaser.Scene {
       }
     }
 
-    // cameraFollowLeader 상태 디버그 표시
-    if (this.cameraFollowText) {
-      this.cameraFollowText.setText(
-        `cameraFollowLeader: ${this.cameraFollowLeader}`
-      );
-    }
     // 실시간 랭킹 표시
     if (this.rankingText) {
       // y값이 큰 순서대로(아래로 내려갈수록 순위가 높음)
@@ -610,38 +640,28 @@ export default class DropBallScene extends Phaser.Scene {
         idx: idx + 1,
         y: ball.position.y,
         finished: false,
+        name: this.ballNames[idx] || `${idx + 1}번`,
       }));
-      const finishedBalls = this.finishedBalls.map((item, _i) => ({
-        idx: item.idx,
-        y: item.ball.position.y,
-        finished: true,
-      }));
+      const finishedBalls = this.finishedBalls.map((item, _i) => {
+        const idx = item.idx - 1;
+        return {
+          idx: item.idx,
+          y: item.ball.position.y,
+          finished: true,
+          name: this.ballNames[idx] || `${item.idx}번`,
+        };
+      });
       const allBalls = [...liveBalls, ...finishedBalls];
       const ranking = allBalls
         .sort((a, b) => b.y - a.y)
         .map((item, i) =>
           item.finished
-            ? `${i + 1}등: 공 #${item.idx} (도착)`
-            : `${i + 1}등: 공 #${item.idx}`
+            ? `#${i + 1} ${item.name} (도착)`
+            : `#${i + 1} ${item.name}`
         )
         .join("\n");
       this.rankingText.setText("실시간 랭킹\n" + ranking);
     }
-  }
-
-  showResult() {
-    // 결과 표시 (순서대로)
-    this.add.text(
-      320,
-      30 + this.results.length * 22,
-      `${this.results.length}등: ${
-        this.results[this.results.length - 1]
-      }번 슬롯`,
-      {
-        font: "18px Arial",
-        color: "#fff",
-      }
-    );
   }
 
   addPins(centerX: number, _pinCount: number, pinRows: number, startY: number) {
