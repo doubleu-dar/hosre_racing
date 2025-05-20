@@ -65,6 +65,7 @@ export default class DropBallScene extends Phaser.Scene {
 
   // 결과 표시 플래그
   private resultShown: boolean = false;
+  private winnerText?: Phaser.GameObjects.Text;
 
   preload() {}
 
@@ -224,11 +225,7 @@ export default class DropBallScene extends Phaser.Scene {
     this.showNameInputUI();
 
     // 창 크기 변경 시 캔버스도 자동 조정
-    window.addEventListener("resize", () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      this.scale.resize(w, h);
-    });
+    window.addEventListener("resize", this.handleResize);
   }
   makeFunnels() {
     const funnel2LeftGuide = this.matter.add.rectangle(
@@ -464,9 +461,15 @@ export default class DropBallScene extends Phaser.Scene {
         friction: 0.01,
         frictionAir: 0.002,
       });
-      this.balls.push({ index: i, ball, rank: 0 });
-      // 공 이름 지정 (입력값 우선, 없으면 번호)
       const name = this.ballNames[i] || `${i + 1}번`;
+      this.balls.push({
+        index: i,
+        ball,
+        rank: 0,
+        name: name,
+        isFinish: false,
+      });
+      // 공 이름 지정 (입력값 우선, 없으면 번호)
       // 이름 텍스트 생성 및 저장 (index와 함께)
       const nameText = this.add
         .text(ball.position.x, ball.position.y - this.ballRadius, name, {
@@ -540,7 +543,7 @@ export default class DropBallScene extends Phaser.Scene {
     }
 
     // 슬롯 체크 (Matter Physics)
-    this.balls = this.balls.filter(({ index, ball }) => {
+    this.balls = this.balls.filter(({ index, ball, name }) => {
       if (
         ball &&
         ball.position &&
@@ -548,7 +551,13 @@ export default class DropBallScene extends Phaser.Scene {
       ) {
         // 도착한 공을 finishedBalls에 저장 (rank 추가)
         const rank = this.finishedBalls.length + 1;
-        this.finishedBalls.push({ index: index + 1, ball, rank });
+        this.finishedBalls.push({
+          index: index + 1,
+          ball,
+          rank,
+          name: name,
+          isFinish: true,
+        });
         // 이름 텍스트도 숨김
         const nameTextObj = this.ballNameTexts.find((t) => t.index === index);
         if (nameTextObj) nameTextObj.text.setVisible(false);
@@ -621,11 +630,12 @@ export default class DropBallScene extends Phaser.Scene {
         ...finishedBalls.sort((a, b) => a.rank - b.rank),
         ...liveBalls.sort((a, b) => b.y - a.y),
       ];
+      const finishedCount = finishedBalls.length;
       const ranking = allBalls
-        .map((item) =>
+        .map((item, i) =>
           item.finished
             ? `#${item.rank} ${item.name} (도착)`
-            : `#${finishedBalls.length + 1} ${item.name}`
+            : `#${i + 1} ${item.name}`
         )
         .join("\n");
       this.rankingText.setText("실시간 랭킹\n" + ranking);
@@ -741,14 +751,35 @@ export default class DropBallScene extends Phaser.Scene {
 
   showResult() {
     // 최종 1위 강조 표시
-    const winner = this.results[0];
-    this.add.text(320, 30, `🏆 ${winner}번 슬롯이 1위입니다!`, {
-      font: "60px Arial",
-      color: "#fff",
-    });
-    // 게임 종료 시 입력 UI 다시 표시
+    if (this.winnerText) this.winnerText.destroy();
+    const winner = this.finishedBalls.find((b) => b.rank === 1);
+    this.winnerText = this.add
+      .text(0, 0, `🏆 WINNER ${winner?.name}`, {
+        font: "60px Arial",
+        color: "#fff",
+        backgroundColor: "#222",
+        padding: { left: 10, right: 10, top: 5, bottom: 5 },
+      })
+      .setOrigin(1, 1)
+      .setScrollFactor(0)
+      .setDepth(2000);
+    this.handleResize();
     this.showNameInputUI();
   }
+
+  // resize 핸들러 통합 관리
+  private handleResize = () => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.scale.resize(w, h);
+    if (this.rankingText) {
+      // 필요시 랭킹 텍스트 위치 조정 (예: 화면 우측 상단 고정 시)
+      this.rankingText.setPosition(w - 40, 40);
+    }
+    if (this.winnerText) {
+      this.winnerText.setPosition(w + 500, h + 500);
+    }
+  };
 
   // 공 이름 입력 UI를 띄우는 함수 (create, 게임 재시작 모두에서 사용)
   showNameInputUI() {
@@ -830,7 +861,20 @@ export default class DropBallScene extends Phaser.Scene {
         nameInputBtn.remove();
         this.cameraFollowLeader = true;
         this.gameStarted = true;
+        if (this.winnerText) {
+          this.winnerText.destroy();
+          this.winnerText = undefined;
+        }
+        // ...existing code...
       }
     };
+  }
+
+  // destroy 시 resize 핸들러 해제
+  shutdown() {
+    window.removeEventListener("resize", this.handleResize);
+  }
+  destroy() {
+    window.removeEventListener("resize", this.handleResize);
   }
 }
