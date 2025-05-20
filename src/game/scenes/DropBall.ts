@@ -783,12 +783,13 @@ export default class DropBallScene extends Phaser.Scene {
   showNameInputUI() {
     const canvas = this.game.canvas;
     const rect = canvas.getBoundingClientRect();
+    const inputBoxWidth = 1080;
     // 라벨
     const nameInputLabel = document.createElement("label");
     nameInputLabel.innerText = "공 이름을 입력하세요 (콤마로 구분):";
     nameInputLabel.style.position = "absolute";
     nameInputLabel.style.left = rect.left + 24 + "px";
-    nameInputLabel.style.top = rect.bottom - 120 + "px";
+    nameInputLabel.style.top = rect.bottom - 140 + "px";
     nameInputLabel.style.fontSize = "22px";
     nameInputLabel.style.color = "#fff";
     nameInputLabel.style.background = "rgba(34,34,34,0.92)";
@@ -804,8 +805,8 @@ export default class DropBallScene extends Phaser.Scene {
     nameInputBox.placeholder = "예: 공1,공2,공3";
     nameInputBox.style.position = "absolute";
     nameInputBox.style.left = rect.left + 24 + "px";
-    nameInputBox.style.top = rect.bottom - 70 + "px";
-    nameInputBox.style.width = "320px";
+    nameInputBox.style.top = rect.bottom - 100 + "px";
+    nameInputBox.style.width = `${inputBoxWidth}px`;
     nameInputBox.style.height = "80px";
     nameInputBox.style.fontSize = "22px";
     nameInputBox.style.borderRadius = "0 0 0 0";
@@ -825,7 +826,7 @@ export default class DropBallScene extends Phaser.Scene {
     const nameInputBtn = document.createElement("button");
     nameInputBtn.innerText = "시작";
     nameInputBtn.style.position = "absolute";
-    nameInputBtn.style.left = rect.left + 24 + 340 + "px";
+    nameInputBtn.style.left = rect.left + 24 + inputBoxWidth + 24 + "px";
     nameInputBtn.style.top = rect.bottom - 70 + "px";
     nameInputBtn.style.height = "42px";
     nameInputBtn.style.fontSize = "22px";
