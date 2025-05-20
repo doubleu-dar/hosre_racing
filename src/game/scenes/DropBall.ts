@@ -629,7 +629,6 @@ export default class DropBallScene extends Phaser.Scene {
         ...finishedBalls.sort((a, b) => a.rank - b.rank),
         ...liveBalls.sort((a, b) => b.y - a.y),
       ];
-      const finishedCount = finishedBalls.length;
       const ranking = allBalls
         .map((item, i) =>
           item.finished
