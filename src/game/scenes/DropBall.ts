@@ -3,16 +3,13 @@ import Phaser from "phaser";
 export default class DropBallScene extends Phaser.Scene {
   private balls: MatterJS.BodyType[] = [];
   private pins: MatterJS.BodyType[] = [];
-  private slots: MatterJS.BodyType[] = [];
   private results: number[] = [];
   private ballCount: number = 10;
   // private pinCount: number = 6;
   private ballRadius: number = 20;
   private gameStarted: boolean = false;
-  private worldSize = { width: 2400, height: 8000 };
+  private worldSize = { width: 2400, height: 7000 };
   private crossBars: MatterJS.BodyType[] = [];
-  private spinningRectClockwise: MatterJS.BodyType[] = [];
-  private spinningRectCounterClockwise: MatterJS.BodyType[] = [];
   private walls: MatterJS.BodyType[] = [];
 
   // 드래그 상태 변수 선언
@@ -28,7 +25,6 @@ export default class DropBallScene extends Phaser.Scene {
   private width = 500;
   private leftX = this.worldCenterX - this.width / 2;
   private rightX = this.leftX + this.width;
-  private startFunnelY = 900;
   private funnelLength = 300;
   private curveStartY = 3000;
   private curveEndY = 3500;
@@ -53,6 +49,15 @@ export default class DropBallScene extends Phaser.Scene {
 
   // cameraFollowLeader 상태 디버그 텍스트
   private cameraFollowText!: Phaser.GameObjects.Text;
+  // 실시간 랭킹 텍스트
+  private rankingText!: Phaser.GameObjects.Text;
+
+  // 도착한 공 정보 저장
+  private finishedBalls: { idx: number; ball: MatterJS.BodyType }[] = [];
+
+  // 공 이름 및 이름 텍스트 저장
+  private ballNames: string[] = [];
+  private ballNameTexts: Phaser.GameObjects.Text[] = [];
 
   preload() {}
 
@@ -233,6 +238,17 @@ export default class DropBallScene extends Phaser.Scene {
         padding: { left: 8, right: 8, top: 4, bottom: 4 },
       })
       .setScrollFactor(0);
+    // 실시간 랭킹 텍스트 (우측 상단)
+    this.rankingText = this.add
+      .text(this.cameras.main.width - 220, 20, "", {
+        font: "20px Arial",
+        color: "#fff",
+        backgroundColor: "#222",
+        padding: { left: 10, right: 10, top: 5, bottom: 5 },
+        align: "right",
+      })
+      .setScrollFactor(0)
+      .setDepth(1000);
   }
   makeFunnels() {
     const funnel2LeftGuide = this.matter.add.rectangle(
@@ -355,7 +371,7 @@ export default class DropBallScene extends Phaser.Scene {
 
   makeLastFunnel() {
     const finalFunnelY = 6000;
-    const funnelWall = 500;
+    const funnelWall = 400;
     // 깔때기 사선 벽(왼쪽)
     const lastFunnel = this.matter.add.rectangle(
       //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
@@ -468,19 +484,37 @@ export default class DropBallScene extends Phaser.Scene {
         frictionAir: 0.002,
       });
       this.balls.push(ball);
+      // 공 이름 지정 (예: 1번, 2번, ...)
+      const name = `${i + 1}번`;
+      this.ballNames.push(name);
+      // 이름 텍스트 생성 및 저장
+      const nameText = this.add
+        .text(ball.position.x, ball.position.y - this.ballRadius - 18, name, {
+          font: "16px Arial",
+          color: "#fff",
+          backgroundColor: "#222",
+          padding: { left: 4, right: 4, top: 2, bottom: 2 },
+        })
+        .setOrigin(0.5, 1);
+      this.ballNameTexts.push(nameText);
     }
   }
 
   update() {
+    // 현재 타임스케일에 맞춰 회전 속도 조절
+    const timeScale = this.matter.world.engine.timing.timeScale || 1;
     // 십자 장애물 회전 (개별 속도)
     for (const cross of this.spinningCrosses) {
       for (const bar of cross.bars) {
-        this.matter.body.setAngle(bar, bar.angle + cross.speed);
+        this.matter.body.setAngle(bar, bar.angle + cross.speed * timeScale);
       }
     }
     // 새로운 방식: 개별 속도 지정 회전 장애물
     for (const rect of this.spinningRects) {
-      this.matter.body.setAngle(rect.body, rect.body.angle + rect.speed);
+      this.matter.body.setAngle(
+        rect.body,
+        rect.body.angle + rect.speed * timeScale
+      );
     }
 
     // 1등(가장 y가 큰, 즉 가장 아래에 있는) 공 찾기
@@ -495,11 +529,17 @@ export default class DropBallScene extends Phaser.Scene {
 
     // 마지막 깔대기 근처에서 월드 속도(중력) 낮추기
     const slowZoneStartY = 6000 - 300; // 마지막 깔대기 시작점 근처(6000은 makeLastFunnel의 Y)
-    const slowZoneEndY = 6000 + 600;   // 깔대기 아래까지
-    if (leader && leader.position && leader.position.y > slowZoneStartY && leader.position.y < slowZoneEndY) {
+    const slowZoneEndY = 6000 + 600; // 깔대기 아래까지
+    if (
+      this.finishedBalls.length === 0 &&
+      leader &&
+      leader.position &&
+      leader.position.y > slowZoneStartY &&
+      leader.position.y < slowZoneEndY
+    ) {
       this.matter.world.engine.timing.timeScale = 0.4; // 전체 게임 속도 느리게
     } else {
-      this.matter.world.engine.timing.timeScale = 1;   // 기본 속도
+      this.matter.world.engine.timing.timeScale = 1; // 기본 속도
     }
 
     // 1등 공이 있으면 카메라가 따라가도록 설정 (자동추적)
@@ -508,18 +548,35 @@ export default class DropBallScene extends Phaser.Scene {
     }
 
     // 슬롯 체크 (Matter Physics)
-    this.balls = this.balls.filter((ball) => {
+    this.balls = this.balls.filter((ball, i) => {
       if (
         ball &&
         ball.position &&
         ball.position.y > this.worldSize.height - 100
       ) {
-        // Matter Physics에서는 setStatic(true)로 멈추거나, 월드에서 제거
+        // 도착한 공을 finishedBalls에 저장
+        this.finishedBalls.push({ idx: i + 1, ball });
+        // 이름 텍스트도 숨김
+        if (this.ballNameTexts[i]) this.ballNameTexts[i].setVisible(false);
         this.matter.world.remove(ball);
         this.showResult();
         return false; // 배열에서 제거
       }
       return true;
+    });
+
+    // 공 이름 텍스트 위치 업데이트 (공이 월드에서 제거된 경우 숨김)
+    this.ballNameTexts.forEach((text, i) => {
+      const ball = this.balls[i];
+      if (ball && ball.position) {
+        text.setPosition(
+          ball.position.x,
+          ball.position.y - this.ballRadius - 18
+        );
+        text.setVisible(true);
+      } else {
+        text.setVisible(false);
+      }
     });
 
     // 속도 감속 지역 적용
@@ -545,6 +602,30 @@ export default class DropBallScene extends Phaser.Scene {
       this.cameraFollowText.setText(
         `cameraFollowLeader: ${this.cameraFollowLeader}`
       );
+    }
+    // 실시간 랭킹 표시
+    if (this.rankingText) {
+      // y값이 큰 순서대로(아래로 내려갈수록 순위가 높음)
+      const liveBalls = this.balls.map((ball, idx) => ({
+        idx: idx + 1,
+        y: ball.position.y,
+        finished: false,
+      }));
+      const finishedBalls = this.finishedBalls.map((item, _i) => ({
+        idx: item.idx,
+        y: item.ball.position.y,
+        finished: true,
+      }));
+      const allBalls = [...liveBalls, ...finishedBalls];
+      const ranking = allBalls
+        .sort((a, b) => b.y - a.y)
+        .map((item, i) =>
+          item.finished
+            ? `${i + 1}등: 공 #${item.idx} (도착)`
+            : `${i + 1}등: 공 #${item.idx}`
+        )
+        .join("\n");
+      this.rankingText.setText("실시간 랭킹\n" + ranking);
     }
   }
 
