@@ -58,24 +58,22 @@ export default class DropBallScene extends Phaser.Scene {
   private ballNameTexts: { index: number; text: Phaser.GameObjects.Text }[] =
     [];
 
+  // 카메라 줌 목표값 및 속도
+  private targetZoom: number = 0.5;
+  private zoomSpeed: number = 0.02;
+
   preload() {}
 
   create() {
-    this.matter.world.setBounds(
-      0,
-      0,
-      this.worldSize.width,
-      this.worldSize.height
-    );
+    // 브라우저 창 크기에 맞게 캔버스 크기 조정
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    this.scale.resize(width, height);
+    this.matter.world.setBounds(0, 0, this.worldSize.width, this.worldSize.height);
 
     this.cameras.main.setBackgroundColor("#222");
     this.cameras.main.setZoom(0.5);
-    this.cameras.main.setBounds(
-      0,
-      0,
-      this.worldSize.width,
-      this.worldSize.height
-    );
+    this.cameras.main.setBounds(0, 0, this.worldSize.width, this.worldSize.height);
 
     this.makeWalls();
 
@@ -210,6 +208,13 @@ export default class DropBallScene extends Phaser.Scene {
       .setDepth(1000);
     // 공 이름 입력 UI 호출
     this.showNameInputUI();
+
+    // 창 크기 변경 시 캔버스도 자동 조정
+    window.addEventListener("resize", () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      this.scale.resize(w, h);
+    });
   }
   makeFunnels() {
     const funnel2LeftGuide = this.matter.add.rectangle(
@@ -500,8 +505,19 @@ export default class DropBallScene extends Phaser.Scene {
       leader.position.y < slowZoneEndY
     ) {
       this.matter.world.engine.timing.timeScale = 0.4; // 전체 게임 속도 느리게
+      this.targetZoom = 1.0; // 마지막 구간에서 카메라 줌인 목표값
     } else {
       this.matter.world.engine.timing.timeScale = 1; // 기본 속도
+      this.targetZoom = 0.5; // 평소에는 기본 줌 목표값
+    }
+    // 카메라 줌을 부드럽게 보간
+    const currentZoom = this.cameras.main.zoom;
+    if (Math.abs(currentZoom - this.targetZoom) > 0.01) {
+      this.cameras.main.setZoom(
+        Phaser.Math.Linear(currentZoom, this.targetZoom, this.zoomSpeed)
+      );
+    } else {
+      this.cameras.main.setZoom(this.targetZoom);
     }
 
     // 1등 공이 있으면 카메라가 따라가도록 설정 (자동추적)
