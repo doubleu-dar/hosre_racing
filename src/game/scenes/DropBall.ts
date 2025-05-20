@@ -7,7 +7,6 @@ export default class DropBallScene extends Phaser.Scene {
   private finishedBalls: BallInfo[] = [];
 
   private pins: MatterJS.BodyType[] = [];
-  private results: number[] = [];
   private ballCount: number = 10;
   // private pinCount: number = 6;
   private ballRadius: number = 20;
@@ -852,7 +851,6 @@ export default class DropBallScene extends Phaser.Scene {
         this.ballNameTexts.forEach((t) => t.text.destroy());
         this.ballNameTexts = [];
         this.finishedBalls = [];
-        this.results = [];
         this.resultShown = false; // 게임 재시작 시 결과 플래그 초기화
         this.dropBallsMatter();
         // UI 제거
