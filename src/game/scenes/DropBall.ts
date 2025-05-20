@@ -47,6 +47,13 @@ export default class DropBallScene extends Phaser.Scene {
     super({ key: "DropBallScene" });
   }
 
+  // 카메라 자동추적 관련 변수
+  private cameraFollowLeader: boolean = true;
+  private cameraFollowTimeout?: ReturnType<typeof setTimeout>;
+
+  // cameraFollowLeader 상태 디버그 텍스트
+  private cameraFollowText!: Phaser.GameObjects.Text;
+
   preload() {}
 
   create() {
@@ -81,12 +88,22 @@ export default class DropBallScene extends Phaser.Scene {
         padding: { left: 10, right: 10, top: 5, bottom: 5 },
       })
       .setInteractive({ useHandCursor: true })
-      .on("pointerdown", () => {
-        if (!this.gameStarted) {
-          this.gameStarted = true;
+      .on(
+        "pointerdown",
+        (
+          _pointer: Phaser.Input.Pointer,
+          _localX: number,
+          _localY: number,
+          event: Phaser.Types.Input.EventData
+        ) => {
+          event.stopPropagation(); // 이벤트 전파 중단
+          if (!this.gameStarted) {
+            this.gameStarted = true;
+          }
+          this.dropBallsMatter();
+          this.cameraFollowLeader = true;
         }
-        this.dropBallsMatter();
-      });
+      );
     this.makeWalls();
 
     // 핀(장애물) 배치 (Matter Physics)
@@ -141,7 +158,7 @@ export default class DropBallScene extends Phaser.Scene {
     this.addPins(centerX, 7, 5, 5200);
     this.makeLastFunnel();
 
-    // 마우스 드래그로 카메라 이동 기능
+    // 마우스 드래그로 카메라 이동 기능 + 자동추적 일시정지
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this._dragCamera = true;
       this._dragStart = { x: pointer.x, y: pointer.y };
@@ -149,9 +166,19 @@ export default class DropBallScene extends Phaser.Scene {
         x: this.cameras.main.scrollX,
         y: this.cameras.main.scrollY,
       };
+      if (this.gameStarted) {
+        // 드래그 시작 시 자동추적 일시정지
+        this.cameraFollowLeader = false;
+        if (this.cameraFollowTimeout) clearTimeout(this.cameraFollowTimeout);
+      }
     });
     this.input.on("pointerup", () => {
       this._dragCamera = false;
+      // 3초 후 자동추적 재개
+      if (this.cameraFollowTimeout) clearTimeout(this.cameraFollowTimeout);
+      this.cameraFollowTimeout = setTimeout(() => {
+        this.cameraFollowLeader = true;
+      }, 3000);
     });
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       if (this._dragCamera && pointer.isDown) {
@@ -161,6 +188,11 @@ export default class DropBallScene extends Phaser.Scene {
           this._cameraStart.x - dx / this.cameras.main.zoom;
         this.cameras.main.scrollY =
           this._cameraStart.y - dy / this.cameras.main.zoom;
+        // 드래그 중 입력이 있으면 타이머 리셋
+        if (this.cameraFollowTimeout) clearTimeout(this.cameraFollowTimeout);
+        this.cameraFollowTimeout = setTimeout(() => {
+          this.cameraFollowLeader = true;
+        }, 3000);
       }
     });
 
@@ -191,6 +223,16 @@ export default class DropBallScene extends Phaser.Scene {
         )
         .setDepth(-1);
     }
+
+    // cameraFollowLeader 상태 디버그 텍스트
+    this.cameraFollowText = this.add
+      .text(20, 100, "", {
+        font: "20px Arial",
+        color: "#ff0",
+        backgroundColor: "#222",
+        padding: { left: 8, right: 8, top: 4, bottom: 4 },
+      })
+      .setScrollFactor(0);
   }
   makeFunnels() {
     const funnel2LeftGuide = this.matter.add.rectangle(
@@ -442,7 +484,7 @@ export default class DropBallScene extends Phaser.Scene {
     }
 
     // 1등(가장 y가 큰, 즉 가장 아래에 있는) 공 찾기
-    let leader = null;
+    let leader: MatterJS.BodyType = this.balls[0];
     let maxY = Number.NEGATIVE_INFINITY;
     this.balls.forEach((ball) => {
       if (ball && ball.position && ball.position.y > maxY) {
@@ -450,10 +492,19 @@ export default class DropBallScene extends Phaser.Scene {
         leader = ball;
       }
     });
-    // 1등 공이 있으면 카메라가 따라가도록 설정
-    if (leader && (leader as MatterJS.BodyType).position) {
-      const pos = (leader as MatterJS.BodyType).position;
-      // this.cameras.main.centerOn(pos.x, pos.y);
+
+    // 마지막 깔대기 근처에서 월드 속도(중력) 낮추기
+    const slowZoneStartY = 6000 - 300; // 마지막 깔대기 시작점 근처(6000은 makeLastFunnel의 Y)
+    const slowZoneEndY = 6000 + 600;   // 깔대기 아래까지
+    if (leader && leader.position && leader.position.y > slowZoneStartY && leader.position.y < slowZoneEndY) {
+      this.matter.world.engine.timing.timeScale = 0.4; // 전체 게임 속도 느리게
+    } else {
+      this.matter.world.engine.timing.timeScale = 1;   // 기본 속도
+    }
+
+    // 1등 공이 있으면 카메라가 따라가도록 설정 (자동추적)
+    if (this.cameraFollowLeader && leader && leader.position) {
+      this.cameras.main.centerOn(leader.position.x, leader.position.y);
     }
 
     // 슬롯 체크 (Matter Physics)
@@ -487,6 +538,13 @@ export default class DropBallScene extends Phaser.Scene {
           });
         }
       }
+    }
+
+    // cameraFollowLeader 상태 디버그 표시
+    if (this.cameraFollowText) {
+      this.cameraFollowText.setText(
+        `cameraFollowLeader: ${this.cameraFollowLeader}`
+      );
     }
   }
 
