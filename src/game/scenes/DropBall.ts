@@ -536,9 +536,16 @@ export default class DropBallScene extends Phaser.Scene {
       this.cameras.main.setZoom(this.targetZoom);
     }
 
-    // 1등 공이 있으면 카메라가 따라가도록 설정 (자동추적)
+    // 1등 공이 있으면 카메라가 따라가도록 설정 (자동추적, 부드럽게)
     if (this.cameraFollowLeader && leader && leader.position) {
-      this.cameras.main.centerOn(leader.position.x, leader.position.y);
+      // 기존: this.cameras.main.centerOn(leader.position.x, leader.position.y);
+      // 부드럽게 이동
+      const cam = this.cameras.main;
+      const lerp = 0.08; // 0~1 사이, 값이 작을수록 더 부드럽게
+      const targetX = leader.position.x;
+      const targetY = leader.position.y;
+      cam.scrollX += (targetX - cam.midPoint.x) * lerp;
+      cam.scrollY += (targetY - cam.midPoint.y) * lerp;
     }
 
     // 슬롯 체크 (Matter Physics)
