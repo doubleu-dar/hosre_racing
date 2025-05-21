@@ -139,8 +139,16 @@ export default class DropBallScene extends Phaser.Scene {
       20,
       -0.005
     );
+    this.addSpinningRect(
+      this.leftX + (this.width / 4) * 1,
+      5300,
+      400,
+      20,
+      -0.01
+    );
 
-    this.addPins(centerX, 7, 5, 5200);
+    // this.addPins(centerX, 7, 5, 5200);
+    this.addTriangles(centerX, 5, 5, 5500);
     this.makeLastFunnel();
 
     // 마우스 드래그로 카메라 이동 기능 + 자동추적 일시정지
@@ -407,6 +415,8 @@ export default class DropBallScene extends Phaser.Scene {
   // 십자 장애물 정보 저장용 타입
   private spinningCrosses: { bars: MatterJS.BodyType[]; speed: number }[] = [];
 
+  private spinningTriangles: { body: MatterJS.BodyType; speed: number }[] = [];
+
   addSpinningRect(
     crossX: number,
     crossY: number,
@@ -450,6 +460,40 @@ export default class DropBallScene extends Phaser.Scene {
     });
     this.crossBars.push(crossBar1, crossBar2);
     this.spinningCrosses.push({ bars: [crossBar1, crossBar2], speed });
+  }
+
+  addTriangles(
+    centerX: number,
+    triangleCount: number,
+    rows: number,
+    startY: number,
+    speed: number = 0.03
+  ) {
+    const triangleSize = 16; // 삼각형 한 변의 길이(작게)
+    const height = (triangleSize * Math.sqrt(3)) / 2; // 정삼각형 높이
+    for (let row = 0; row < rows; row++) {
+      const count = triangleCount + (row % 2 === 0 ? 1 : 0);
+      const rowY = startY + row * (height + 50);
+      const spacing = 100;
+      let startX = centerX - ((count - 1) / 2) * spacing;
+      for (let col = 0; col < count; col++) {
+        const x = startX + col * spacing;
+        const y = rowY + 50;
+        // 정삼각형 꼭짓점 (중심 기준)
+        const points = [
+          { x: 0, y: -height / 2 },
+          { x: -triangleSize / 2, y: height / 2 },
+          { x: triangleSize / 2, y: height / 2 },
+        ];
+        // 랜덤 시작 각도
+        const initialAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+        const triangle = this.matter.add.fromVertices(x, y, points, {
+          isStatic: true,
+          angle: initialAngle,
+        });
+        this.spinningTriangles.push({ body: triangle, speed });
+      }
+    }
   }
 
   dropBallsMatter() {
@@ -498,6 +542,10 @@ export default class DropBallScene extends Phaser.Scene {
         rect.body,
         rect.body.angle + rect.speed * timeScale
       );
+    }
+    // 삼각형 회전
+    for (const tri of this.spinningTriangles) {
+      this.matter.body.setAngle(tri.body, tri.body.angle + tri.speed);
     }
 
     // 1등(가장 y가 큰, 즉 가장 아래에 있는) 공 찾기
