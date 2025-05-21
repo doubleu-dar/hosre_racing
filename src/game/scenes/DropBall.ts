@@ -484,13 +484,14 @@ export default class DropBallScene extends Phaser.Scene {
           { x: -triangleSize / 2, y: height / 2 },
           { x: triangleSize / 2, y: height / 2 },
         ];
-        // 랜덤 시작 각도
+        // 랜덤 시작 각도와 랜덤 회전 방향(속도)
         const initialAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+        const randomSpeed = (Math.random() < 0.5 ? -1 : 1) * Math.abs(speed);
         const triangle = this.matter.add.fromVertices(x, y, points, {
           isStatic: true,
           angle: initialAngle,
         });
-        this.spinningTriangles.push({ body: triangle, speed });
+        this.spinningTriangles.push({ body: triangle, speed: randomSpeed });
       }
     }
   }
@@ -905,6 +906,13 @@ export default class DropBallScene extends Phaser.Scene {
       if (names.length > 0) {
         this.ballNames = names;
         this.ballCount = names.length;
+        // 기존 공 모두 파괴 (Matter에서 제거)
+        this.balls.forEach(({ ball }) => {
+          if (ball && ball.position) {
+            this.matter.world.remove(ball);
+          }
+        });
+
         this.balls = [];
         this.ballNameTexts.forEach((t) => t.text.destroy());
         this.ballNameTexts = [];
