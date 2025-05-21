@@ -147,7 +147,6 @@ export default class DropBallScene extends Phaser.Scene {
       -0.01
     );
 
-    // this.addPins(centerX, 7, 5, 5200);
     this.addTriangles(centerX, 5, 5, 5500);
     this.makeLastFunnel();
 
