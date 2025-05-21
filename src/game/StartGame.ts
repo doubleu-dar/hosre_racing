@@ -1,10 +1,4 @@
-import { Boot } from "./scenes/Boot";
-import { GameOver } from "./scenes/GameOver";
-import { Game as MainGame } from "./scenes/Game";
-import { MainMenu } from "./scenes/MainMenu";
-import { AUTO, Game } from "phaser";
-import { Preloader } from "./scenes/Preloader";
-import RacingScene from "./scenes/Racing";
+import { Game } from "phaser";
 import DropBallScene from "./scenes/DropBall";
 
 const config: Phaser.Types.Core.GameConfig = {

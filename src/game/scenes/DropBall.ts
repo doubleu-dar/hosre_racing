@@ -348,13 +348,14 @@ export default class DropBallScene extends Phaser.Scene {
   makeLastFunnel() {
     const finalFunnelY = 6000;
     const funnelWall = 400;
+    const funnelLastLength = 300;
     // 깔때기 사선 벽(왼쪽)
     const lastFunnel = this.matter.add.rectangle(
       //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
-      this.leftX + (Math.cos(this.funnelRad) * this.funnelLength) / 2,
-      finalFunnelY + (Math.sin(this.funnelRad) * this.funnelLength) / 2,
+      this.leftX + (Math.cos(this.funnelRad) * funnelLastLength) / 2,
+      finalFunnelY + (Math.sin(this.funnelRad) * funnelLastLength) / 2,
       20,
-      this.funnelLength,
+      funnelLastLength,
       {
         isStatic: true,
         angle: -this.funnelRad,
@@ -362,9 +363,9 @@ export default class DropBallScene extends Phaser.Scene {
     );
 
     const funnelLeftWall = this.matter.add.rectangle(
-      this.leftX + Math.cos(this.funnelRad) * this.funnelLength,
+      this.leftX + Math.cos(this.funnelRad) * funnelLastLength,
       finalFunnelY +
-        Math.sin(this.funnelRad) * this.funnelLength +
+        Math.sin(this.funnelRad) * funnelLastLength +
         funnelWall / 2,
       20,
       funnelWall,
@@ -375,19 +376,19 @@ export default class DropBallScene extends Phaser.Scene {
 
     // 깔때기 사선 벽(오른쪽)
     const rightFunnel = this.matter.add.rectangle(
-      this.rightX - (Math.cos(this.funnelRad) * this.funnelLength) / 2,
-      finalFunnelY + (Math.sin(this.funnelRad) * this.funnelLength) / 2,
+      this.rightX - (Math.cos(this.funnelRad) * funnelLastLength) / 2,
+      finalFunnelY + (Math.sin(this.funnelRad) * funnelLastLength) / 2,
       20,
-      this.funnelLength,
+      funnelLastLength,
       {
         isStatic: true,
         angle: this.funnelRad,
       }
     );
     const funnelRightWall = this.matter.add.rectangle(
-      this.rightX - Math.cos(this.funnelRad) * this.funnelLength,
+      this.rightX - Math.cos(this.funnelRad) * funnelLastLength,
       finalFunnelY +
-        Math.sin(this.funnelRad) * this.funnelLength +
+        Math.sin(this.funnelRad) * funnelLastLength +
         funnelWall / 2,
       20,
       funnelWall,
@@ -669,6 +670,7 @@ export default class DropBallScene extends Phaser.Scene {
     // Matter Physics용 벽(왼쪽, 오른쪽, 깔때기) 생성
     // 왼쪽 세로 벽
     const wallTickness = 200;
+    const thinWallTickness = 20;
     const leftWall = this.matter.add.rectangle(
       this.leftX - wallTickness / 2,
       this.worldSize.height / 2,
@@ -687,26 +689,39 @@ export default class DropBallScene extends Phaser.Scene {
     const rightCurveWall = this.matter.add.rectangle(
       this.rightX + this.width / 2,
       this.curveStartY + (this.curveEndY - this.curveStartY) / 2,
-      20,
+      thinWallTickness,
       (1 / Math.cos(this.curveRad)) * this.width,
       { isStatic: true, angle: this.curveRad }
     );
 
-    const leftCurveWall = this.matter.add.rectangle(
-      this.leftX + this.width / 2,
-      this.curveStartY + (this.curveEndY - this.curveStartY) / 2,
-      20,
-      (1 / Math.cos(this.curveRad)) * this.width,
-      { isStatic: true, angle: this.curveRad }
-    );
+    // 기존 leftCurveWall을 좌우로 나누고, 사이에 공 하나만 지나갈 수 있는 구멍 생성
+    const holeWidth = this.ballRadius * 2 + 8; // 공 하나가 여유있게 통과할 수 있는 구멍
+    const curveWallLength = this.width / 2 - holeWidth / 2;
+    // triangleWall과 동일한 위치, 크기의 customPolygon(삼각형) 추가 (변수명 중복 방지)
+    // customTriangleWall을 밑변=높이=base인 이등변 직각삼각형으로 생성
+    const baseX = Math.abs(Math.cos(this.curveRad) * this.width) + wallTickness;
+    const baseY = Math.abs(Math.sin(this.curveRad) * this.width) + wallTickness;
+    const curveLength = this.comebackCurveStartY - this.curveEndY;
 
-    const leftSecondWall = this.matter.add.rectangle(
-      this.leftX + this.width - wallTickness / 2,
-      this.curveEndY + (this.comebackCurveStartY - this.curveEndY) / 2,
-      wallTickness,
-      this.comebackCurveStartY - this.curveEndY,
+    const triCenterX2 = this.leftX + baseX / 2 - 30;
+    const triCenterY2 = this.curveStartY + (baseY + curveLength + baseY) / 2;
+
+    const rightTrianglePoints2 = [
+      { x: 0, y: 0 },
+      { x: baseX, y: -baseY },
+      { x: baseX, y: -(baseY + curveLength) },
+      { x: 0, y: -(baseY + curveLength + baseY) },
+    ];
+
+    // 중심 좌표를 삼각형의 무게중심(centroid)로 맞춰줌
+    const customTriangleWall2 = this.matter.add.fromVertices(
+      triCenterX2,
+      triCenterY2,
+      rightTrianglePoints2,
       { isStatic: true }
     );
+    this.walls.push(customTriangleWall2);
+    this.add.circle(triCenterX2, triCenterY2, 4, 0xff0000, 1).setDepth(1000);
 
     const rightSecondWall = this.matter.add.rectangle(
       this.rightX + this.width + wallTickness / 2,
@@ -716,19 +731,11 @@ export default class DropBallScene extends Phaser.Scene {
       { isStatic: true }
     );
 
-    const leftCurve2Wall = this.matter.add.rectangle(
-      this.leftX + this.width / 2,
-      this.comebackCurveStartY +
-        (this.comebackCurveEndY - this.comebackCurveStartY) / 2,
-      20,
-      (1 / Math.cos(this.curveRad)) * this.width,
-      { isStatic: true, angle: -this.curveRad }
-    );
     const rightCurve2Wall = this.matter.add.rectangle(
       this.rightX + this.width / 2,
       this.comebackCurveStartY +
         (this.comebackCurveEndY - this.comebackCurveStartY) / 2,
-      20,
+      thinWallTickness,
       (1 / Math.cos(this.curveRad)) * this.width,
       { isStatic: true, angle: -this.curveRad }
     );
@@ -744,9 +751,6 @@ export default class DropBallScene extends Phaser.Scene {
     this.walls.push(
       leftWall,
       rightWall,
-      leftCurveWall,
-      leftSecondWall,
-      leftCurve2Wall,
       rightCurveWall,
       rightSecondWall,
       rightCurve2Wall,
