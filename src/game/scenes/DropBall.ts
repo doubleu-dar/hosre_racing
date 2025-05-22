@@ -1,5 +1,8 @@
 import Phaser from "phaser";
 import { BallInfo } from "../BallInfo";
+import { updateObstacles } from "./maps/obstacleUtils";
+import { createDefaultObstacles } from "./maps/types";
+import defaultMap from "./maps/defaultMap";
 
 export default class DropBallScene extends Phaser.Scene {
   private balls: BallInfo[] = [];
@@ -28,11 +31,6 @@ export default class DropBallScene extends Phaser.Scene {
   private width = 500;
   private leftX = this.worldCenterX - this.width / 2;
   private rightX = this.leftX + this.width;
-  private funnelLength = 300;
-  private curveStartY = 3000;
-  private curveEndY = 3500;
-  private comebackCurveStartY = 4500;
-  private comebackCurveEndY = 5000;
   private funnelRad = Phaser.Math.DegToRad(45);
   private curveRad = Phaser.Math.DegToRad(-45);
 
@@ -66,6 +64,9 @@ export default class DropBallScene extends Phaser.Scene {
   private resultShown: boolean = false;
   private winnerText?: Phaser.GameObjects.Text;
 
+  // 장애물 정보 저장용 멤버 변수 추가
+  private mapObstacles = createDefaultObstacles();
+
   preload() {}
 
   create() {
@@ -89,66 +90,79 @@ export default class DropBallScene extends Phaser.Scene {
       this.worldSize.height
     );
 
-    this.makeWalls();
+    // this.makeWalls();
 
-    // 핀(장애물) 배치 (Matter Physics)
-    // this.addPins(this.leftX, 4, 200);
-    const centerX = this.leftX + this.width / 2;
-    this.addSpinningCross(
-      this.leftX + (this.width / 4) * 1,
-      500,
-      250,
-      20,
-      0.03
-    );
-    this.addSpinningCross(
-      this.leftX + (this.width / 4) * 3,
-      500,
-      250,
-      20,
-      -0.03
-    );
-    this.addSpinningCross(this.leftX + this.width / 2, 750, 250, 20);
-    this.addSpinningCross(
-      this.leftX + (this.width / 4) * 1,
-      1000,
-      250,
-      20,
-      -0.03
-    );
-    this.addSpinningCross(
-      this.leftX + (this.width / 4) * 3,
-      1000,
-      250,
-      20,
-      0.03
-    );
-    this.makeFunnels();
-    this.addPins(centerX, 7, 3, 1500);
-    this.addSpinningRect(
-      this.rightX + (this.width / 3) * 1,
-      3800,
-      500,
-      20,
-      0.005
-    );
-    this.addSpinningRect(
-      this.rightX + (this.width / 3) * 2,
-      4200,
-      500,
-      20,
-      -0.005
-    );
-    this.addSpinningRect(
-      this.leftX + (this.width / 4) * 1,
-      5300,
-      400,
-      20,
-      -0.01
-    );
+    // // 핀(장애물) 배치 (Matter Physics)
+    // // this.addPins(this.leftX, 4, 200);
+    // const centerX = this.leftX + this.width / 2;
+    // this.addSpinningCross(
+    //   this.leftX + (this.width / 4) * 1,
+    //   500,
+    //   250,
+    //   20,
+    //   0.03
+    // );
+    // this.addSpinningCross(
+    //   this.leftX + (this.width / 4) * 3,
+    //   500,
+    //   250,
+    //   20,
+    //   -0.03
+    // );
+    // this.addSpinningCross(this.leftX + this.width / 2, 750, 250, 20);
+    // this.addSpinningCross(
+    //   this.leftX + (this.width / 4) * 1,
+    //   1000,
+    //   250,
+    //   20,
+    //   -0.03
+    // );
+    // this.addSpinningCross(
+    //   this.leftX + (this.width / 4) * 3,
+    //   1000,
+    //   250,
+    //   20,
+    //   0.03
+    // );
+    // this.makeFunnels();
+    // this.addPins(centerX, 7, 3, 1500);
+    // this.addSpinningRect(
+    //   this.rightX + (this.width / 3) * 1,
+    //   3800,
+    //   500,
+    //   20,
+    //   0.005
+    // );
+    // this.addSpinningRect(
+    //   this.rightX + (this.width / 3) * 2,
+    //   4200,
+    //   500,
+    //   20,
+    //   -0.005
+    // );
+    // this.addSpinningRect(
+    //   this.leftX + (this.width / 4) * 1,
+    //   5300,
+    //   400,
+    //   20,
+    //   -0.01
+    // );
 
-    this.addTriangles(centerX, 5, 5, 5500);
-    this.makeLastFunnel();
+    // this.addTriangles(centerX, 5, 5, 5500);
+    // this.makeLastFunnel();
+
+    // 맵 모듈화: defaultMap 사용
+    const mapContext = {
+      scene: this,
+      matter: this.matter,
+      leftX: this.leftX,
+      rightX: this.rightX,
+      width: this.width,
+      worldSize: this.worldSize,
+      ballRadius: this.ballRadius,
+      obstacles: this.mapObstacles,
+    };
+    defaultMap(mapContext);
 
     // 마우스 드래그로 카메라 이동 기능 + 자동추적 일시정지
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
@@ -232,181 +246,6 @@ export default class DropBallScene extends Phaser.Scene {
 
     // 창 크기 변경 시 캔버스도 자동 조정
     window.addEventListener("resize", this.handleResize);
-  }
-  makeFunnels() {
-    const funnel2LeftGuide = this.matter.add.rectangle(
-      //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
-      this.leftX + (Math.cos(this.funnelRad) * this.funnel2Length) / 2,
-      this.startFunnel2Y + (Math.sin(this.funnelRad) * this.funnel2Length) / 2,
-      20,
-      this.funnel2Length,
-      {
-        isStatic: true,
-        angle: -this.funnelRad,
-      }
-    );
-    const funnel2CenterLeftGuide = this.matter.add.rectangle(
-      //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
-      this.leftX +
-        Math.cos(this.funnelRad) * this.funnel2Length * 2 -
-        (Math.cos(this.funnelRad) * this.funnel2Length) / 2,
-      this.startFunnel2Y +
-        Math.sin(this.funnelRad) * this.funnel2Length * 2 +
-        (Math.sin(this.funnelRad) * this.funnel2Length) / 2,
-      20,
-      this.funnel2Length,
-      {
-        isStatic: true,
-        angle: this.funnelRad,
-      }
-    );
-    // 깔때기 사선 벽(오른쪽)
-    const funnel2RightGuide = this.matter.add.rectangle(
-      this.rightX - (Math.cos(this.funnelRad) * this.funnel2Length) / 2,
-      this.startFunnel2Y + (Math.sin(this.funnelRad) * this.funnel2Length) / 2,
-      20,
-      this.funnel2Length,
-      {
-        isStatic: true,
-        angle: this.funnelRad,
-      }
-    );
-    const funnel2CenterRightGuide = this.matter.add.rectangle(
-      //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
-      this.rightX -
-        Math.cos(this.funnelRad) * this.funnel2Length * 2 +
-        (Math.cos(this.funnelRad) * this.funnel2Length) / 2,
-      this.startFunnel2Y +
-        Math.sin(this.funnelRad) * this.funnel2Length * 2 +
-        (Math.sin(this.funnelRad) * this.funnel2Length) / 2,
-      20,
-      this.funnel2Length,
-      {
-        isStatic: true,
-        angle: -this.funnelRad,
-      }
-    );
-
-    // 깔때기 사선 벽(왼쪽)
-    const funnel3LeftGuide = this.matter.add.rectangle(
-      //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
-      this.leftX + (Math.cos(this.funnelRad) * this.funnel2Length) / 2,
-      this.startFunnel3Y + (Math.sin(this.funnelRad) * this.funnel2Length) / 2,
-      20,
-      this.funnel2Length,
-      {
-        isStatic: true,
-        angle: -this.funnelRad,
-      }
-    );
-    const funnel3CenterLeftGuide = this.matter.add.rectangle(
-      //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
-      this.leftX +
-        Math.cos(this.funnelRad) * this.funnel2Length * 2 -
-        (Math.cos(this.funnelRad) * this.funnel2Length) / 2,
-      this.startFunnel3Y +
-        Math.sin(this.funnelRad) * this.funnel2Length * 2 +
-        (Math.sin(this.funnelRad) * this.funnel2Length) / 2,
-      20,
-      this.funnel2Length,
-      {
-        isStatic: true,
-        angle: this.funnelRad,
-      }
-    );
-    // 깔때기 사선 벽(오른쪽)
-    const funnel3RightGuide = this.matter.add.rectangle(
-      this.rightX - (Math.cos(this.funnelRad) * this.funnel2Length) / 2,
-      this.startFunnel3Y + (Math.sin(this.funnelRad) * this.funnel2Length) / 2,
-      20,
-      this.funnel2Length,
-      {
-        isStatic: true,
-        angle: this.funnelRad,
-      }
-    );
-    const funnel3CenterRightGuide = this.matter.add.rectangle(
-      //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
-      this.rightX -
-        Math.cos(this.funnelRad) * this.funnel2Length * 2 +
-        (Math.cos(this.funnelRad) * this.funnel2Length) / 2,
-      this.startFunnel3Y +
-        Math.sin(this.funnelRad) * this.funnel2Length * 2 +
-        (Math.sin(this.funnelRad) * this.funnel2Length) / 2,
-      20,
-      this.funnel2Length,
-      {
-        isStatic: true,
-        angle: -this.funnelRad,
-      }
-    );
-    this.walls.push(
-      funnel2LeftGuide,
-      funnel2CenterLeftGuide,
-      funnel2RightGuide,
-      funnel2CenterRightGuide,
-      funnel3LeftGuide,
-      funnel3CenterLeftGuide,
-      funnel3RightGuide,
-      funnel3CenterRightGuide
-    );
-  }
-
-  makeLastFunnel() {
-    const finalFunnelY = 6000;
-    const funnelWall = 400;
-    const funnelLastLength = 300;
-    // 깔때기 사선 벽(왼쪽)
-    const lastFunnel = this.matter.add.rectangle(
-      //funnelLength 를 사선으로 두고 가로 길이를 계산해서 그만큼 이동
-      this.leftX + (Math.cos(this.funnelRad) * funnelLastLength) / 2,
-      finalFunnelY + (Math.sin(this.funnelRad) * funnelLastLength) / 2,
-      20,
-      funnelLastLength,
-      {
-        isStatic: true,
-        angle: -this.funnelRad,
-      }
-    );
-
-    const funnelLeftWall = this.matter.add.rectangle(
-      this.leftX + Math.cos(this.funnelRad) * funnelLastLength,
-      finalFunnelY +
-        Math.sin(this.funnelRad) * funnelLastLength +
-        funnelWall / 2,
-      20,
-      funnelWall,
-      {
-        isStatic: true,
-      }
-    );
-
-    // 깔때기 사선 벽(오른쪽)
-    const rightFunnel = this.matter.add.rectangle(
-      this.rightX - (Math.cos(this.funnelRad) * funnelLastLength) / 2,
-      finalFunnelY + (Math.sin(this.funnelRad) * funnelLastLength) / 2,
-      20,
-      funnelLastLength,
-      {
-        isStatic: true,
-        angle: this.funnelRad,
-      }
-    );
-    const funnelRightWall = this.matter.add.rectangle(
-      this.rightX - Math.cos(this.funnelRad) * funnelLastLength,
-      finalFunnelY +
-        Math.sin(this.funnelRad) * funnelLastLength +
-        funnelWall / 2,
-      20,
-      funnelWall,
-      {
-        isStatic: true,
-      }
-    );
-
-    this.walls.push(lastFunnel, funnelLeftWall, rightFunnel, funnelRightWall);
-
-    this.addSpinningRect(this.leftX, finalFunnelY + 450, 800, 20, -0.003);
   }
 
   // 회전 장애물 정보 저장용 타입
@@ -528,25 +367,20 @@ export default class DropBallScene extends Phaser.Scene {
   }
 
   update() {
-    // 현재 타임스케일에 맞춰 회전 속도 조절
-    const timeScale = this.matter.world.engine.timing.timeScale || 1;
-    // 십자 장애물 회전 (개별 속도)
-    for (const cross of this.spinningCrosses) {
-      for (const bar of cross.bars) {
-        this.matter.body.setAngle(bar, bar.angle + cross.speed * timeScale);
-      }
-    }
-    // 새로운 방식: 개별 속도 지정 회전 장애물
-    for (const rect of this.spinningRects) {
-      this.matter.body.setAngle(
-        rect.body,
-        rect.body.angle + rect.speed * timeScale
-      );
-    }
-    // 삼각형 회전
-    for (const tri of this.spinningTriangles) {
-      this.matter.body.setAngle(tri.body, tri.body.angle + tri.speed);
-    }
+    // 장애물 회전 처리 모듈화
+    updateObstacles(
+      {
+        scene: this,
+        matter: this.matter,
+        leftX: this.leftX,
+        rightX: this.rightX,
+        width: this.width,
+        worldSize: this.worldSize,
+        ballRadius: this.ballRadius,
+        obstacles: this.mapObstacles,
+      },
+      this
+    );
 
     // 1등(가장 y가 큰, 즉 가장 아래에 있는) 공 찾기
     let leaderObj = this.balls[0];
@@ -712,98 +546,6 @@ export default class DropBallScene extends Phaser.Scene {
         this.pins.push(pin);
       }
     }
-  }
-
-  makeWalls() {
-    // Matter Physics용 벽(왼쪽, 오른쪽, 깔때기) 생성
-    // 왼쪽 세로 벽
-    const wallTickness = 200;
-    const thinWallTickness = 20;
-    const leftWall = this.matter.add.rectangle(
-      this.leftX - wallTickness / 2,
-      this.worldSize.height / 2,
-      wallTickness,
-      this.worldSize.height,
-      { isStatic: true }
-    );
-    // 오른쪽 세로 벽
-    const rightWall = this.matter.add.rectangle(
-      this.rightX + wallTickness / 2,
-      this.curveStartY / 2,
-      wallTickness,
-      this.curveStartY,
-      { isStatic: true }
-    );
-    const rightCurveWall = this.matter.add.rectangle(
-      this.rightX + this.width / 2,
-      this.curveStartY + (this.curveEndY - this.curveStartY) / 2,
-      thinWallTickness,
-      (1 / Math.cos(this.curveRad)) * this.width,
-      { isStatic: true, angle: this.curveRad }
-    );
-
-    // 기존 leftCurveWall을 좌우로 나누고, 사이에 공 하나만 지나갈 수 있는 구멍 생성
-    const holeWidth = this.ballRadius * 2 + 8; // 공 하나가 여유있게 통과할 수 있는 구멍
-    const curveWallLength = this.width / 2 - holeWidth / 2;
-    // triangleWall과 동일한 위치, 크기의 customPolygon(삼각형) 추가 (변수명 중복 방지)
-    // customTriangleWall을 밑변=높이=base인 이등변 직각삼각형으로 생성
-    const baseX = Math.abs(Math.cos(this.curveRad) * this.width) + wallTickness;
-    const baseY = Math.abs(Math.sin(this.curveRad) * this.width) + wallTickness;
-    const curveLength = this.comebackCurveStartY - this.curveEndY;
-
-    const triCenterX2 = this.leftX + baseX / 2 - 30;
-    const triCenterY2 = this.curveStartY + (baseY + curveLength + baseY) / 2;
-
-    const rightTrianglePoints2 = [
-      { x: 0, y: 0 },
-      { x: baseX, y: -baseY },
-      { x: baseX, y: -(baseY + curveLength) },
-      { x: 0, y: -(baseY + curveLength + baseY) },
-    ];
-
-    // 중심 좌표를 삼각형의 무게중심(centroid)로 맞춰줌
-    const customTriangleWall2 = this.matter.add.fromVertices(
-      triCenterX2,
-      triCenterY2,
-      rightTrianglePoints2,
-      { isStatic: true }
-    );
-    this.walls.push(customTriangleWall2);
-    this.add.circle(triCenterX2, triCenterY2, 4, 0xff0000, 1).setDepth(1000);
-
-    const rightSecondWall = this.matter.add.rectangle(
-      this.rightX + this.width + wallTickness / 2,
-      this.curveEndY + (this.comebackCurveStartY - this.curveEndY) / 2,
-      wallTickness,
-      this.comebackCurveStartY - this.curveEndY,
-      { isStatic: true }
-    );
-
-    const rightCurve2Wall = this.matter.add.rectangle(
-      this.rightX + this.width / 2,
-      this.comebackCurveStartY +
-        (this.comebackCurveEndY - this.comebackCurveStartY) / 2,
-      thinWallTickness,
-      (1 / Math.cos(this.curveRad)) * this.width,
-      { isStatic: true, angle: -this.curveRad }
-    );
-    const rightFinalWall = this.matter.add.rectangle(
-      this.rightX + wallTickness / 2,
-      this.comebackCurveEndY +
-        (this.worldSize.height - this.comebackCurveEndY) / 2,
-      wallTickness,
-      this.worldSize.height - this.comebackCurveEndY,
-      { isStatic: true }
-    );
-
-    this.walls.push(
-      leftWall,
-      rightWall,
-      rightCurveWall,
-      rightSecondWall,
-      rightCurve2Wall,
-      rightFinalWall
-    );
   }
 
   showResult() {
