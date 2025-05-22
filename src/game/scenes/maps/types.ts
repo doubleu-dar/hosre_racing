@@ -34,3 +34,7 @@ export type UpdateBuilder = (
   ctx: MapBuilderContext,
   scene: Phaser.Scene
 ) => void;
+
+export interface IGameMap {
+  build(): void;
+}

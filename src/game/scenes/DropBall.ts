@@ -9,14 +9,11 @@ export default class DropBallScene extends Phaser.Scene {
   // 도착한 공 정보 저장 (rank 포함)
   private finishedBalls: BallInfo[] = [];
 
-  private pins: MatterJS.BodyType[] = [];
   private ballCount: number = 10;
   // private pinCount: number = 6;
   private ballRadius: number = 20;
   private gameStarted: boolean = false;
   private worldSize = { width: 2400, height: 7000 };
-  private crossBars: MatterJS.BodyType[] = [];
-  private walls: MatterJS.BodyType[] = [];
 
   // 드래그 상태 변수 선언
   private _dragCamera: boolean = false;
@@ -31,14 +28,6 @@ export default class DropBallScene extends Phaser.Scene {
   private width = 500;
   private leftX = this.worldCenterX - this.width / 2;
   private rightX = this.leftX + this.width;
-  private funnelRad = Phaser.Math.DegToRad(45);
-  private curveRad = Phaser.Math.DegToRad(-45);
-
-  private startFunnel2Y = 2000;
-  private funnel2Length = ((1 / Math.cos(this.funnelRad)) * this.width) / 4;
-  private startFunnel3Y =
-    2000 + Math.sin(this.funnelRad) * this.funnel2Length * 3;
-
   // private spinningRectY = 4000;
   constructor() {
     super({ key: "DropBallScene" });
@@ -89,67 +78,6 @@ export default class DropBallScene extends Phaser.Scene {
       this.worldSize.width,
       this.worldSize.height
     );
-
-    // this.makeWalls();
-
-    // // 핀(장애물) 배치 (Matter Physics)
-    // // this.addPins(this.leftX, 4, 200);
-    // const centerX = this.leftX + this.width / 2;
-    // this.addSpinningCross(
-    //   this.leftX + (this.width / 4) * 1,
-    //   500,
-    //   250,
-    //   20,
-    //   0.03
-    // );
-    // this.addSpinningCross(
-    //   this.leftX + (this.width / 4) * 3,
-    //   500,
-    //   250,
-    //   20,
-    //   -0.03
-    // );
-    // this.addSpinningCross(this.leftX + this.width / 2, 750, 250, 20);
-    // this.addSpinningCross(
-    //   this.leftX + (this.width / 4) * 1,
-    //   1000,
-    //   250,
-    //   20,
-    //   -0.03
-    // );
-    // this.addSpinningCross(
-    //   this.leftX + (this.width / 4) * 3,
-    //   1000,
-    //   250,
-    //   20,
-    //   0.03
-    // );
-    // this.makeFunnels();
-    // this.addPins(centerX, 7, 3, 1500);
-    // this.addSpinningRect(
-    //   this.rightX + (this.width / 3) * 1,
-    //   3800,
-    //   500,
-    //   20,
-    //   0.005
-    // );
-    // this.addSpinningRect(
-    //   this.rightX + (this.width / 3) * 2,
-    //   4200,
-    //   500,
-    //   20,
-    //   -0.005
-    // );
-    // this.addSpinningRect(
-    //   this.leftX + (this.width / 4) * 1,
-    //   5300,
-    //   400,
-    //   20,
-    //   -0.01
-    // );
-
-    // this.addTriangles(centerX, 5, 5, 5500);
-    // this.makeLastFunnel();
 
     // 맵 모듈화: defaultMap 사용
     const mapContext = {
@@ -249,92 +177,6 @@ export default class DropBallScene extends Phaser.Scene {
   }
 
   // 회전 장애물 정보 저장용 타입
-  private spinningRects: { body: MatterJS.BodyType; speed: number }[] = [];
-  // 십자 장애물 정보 저장용 타입
-  private spinningCrosses: { bars: MatterJS.BodyType[]; speed: number }[] = [];
-
-  private spinningTriangles: { body: MatterJS.BodyType; speed: number }[] = [];
-
-  addSpinningRect(
-    crossX: number,
-    crossY: number,
-    width: number = 400,
-    height: number = 20,
-    speed: number = 0.005,
-    initialAngle?: number
-  ) {
-    // 정적으로 고정된 회전 장애물
-    const angle =
-      initialAngle !== undefined
-        ? initialAngle
-        : Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const crossBar1 = this.matter.add.rectangle(crossX, crossY, width, height, {
-      isStatic: true,
-      angle,
-    });
-    this.spinningRects.push({ body: crossBar1, speed });
-  }
-
-  addSpinningCross(
-    crossX: number,
-    crossY: number,
-    width: number = 200,
-    height: number = 20,
-    speed: number = 0.03,
-    initialAngle?: number
-  ) {
-    // 정적으로 고정된 회전 십자 장애물
-    const angle =
-      initialAngle !== undefined
-        ? initialAngle
-        : Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const crossBar1 = this.matter.add.rectangle(crossX, crossY, width, height, {
-      isStatic: true,
-      angle,
-    });
-    const crossBar2 = this.matter.add.rectangle(crossX, crossY, width, height, {
-      isStatic: true,
-      angle: angle + Phaser.Math.DegToRad(90),
-    });
-    this.crossBars.push(crossBar1, crossBar2);
-    this.spinningCrosses.push({ bars: [crossBar1, crossBar2], speed });
-  }
-
-  addTriangles(
-    centerX: number,
-    triangleCount: number,
-    rows: number,
-    startY: number,
-    speed: number = 0.03
-  ) {
-    const triangleSize = 16; // 삼각형 한 변의 길이(작게)
-    const height = (triangleSize * Math.sqrt(3)) / 2; // 정삼각형 높이
-    for (let row = 0; row < rows; row++) {
-      const count = triangleCount + (row % 2 === 0 ? 1 : 0);
-      const rowY = startY + row * (height + 50);
-      const spacing = 100;
-      let startX = centerX - ((count - 1) / 2) * spacing;
-      for (let col = 0; col < count; col++) {
-        const x = startX + col * spacing;
-        const y = rowY + 50;
-        // 정삼각형 꼭짓점 (중심 기준)
-        const points = [
-          { x: 0, y: -height / 2 },
-          { x: -triangleSize / 2, y: height / 2 },
-          { x: triangleSize / 2, y: height / 2 },
-        ];
-        // 랜덤 시작 각도와 랜덤 회전 방향(속도)
-        const initialAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-        const randomSpeed = (Math.random() < 0.5 ? -1 : 1) * Math.abs(speed);
-        const triangle = this.matter.add.fromVertices(x, y, points, {
-          isStatic: true,
-          angle: initialAngle,
-        });
-        this.spinningTriangles.push({ body: triangle, speed: randomSpeed });
-      }
-    }
-  }
-
   dropBallsMatter() {
     this.balls = [];
     for (let i = 0; i < this.ballCount; i++) {
@@ -527,24 +369,6 @@ export default class DropBallScene extends Phaser.Scene {
         )
         .join("\n");
       this.rankingText.setText("실시간 랭킹\n" + ranking);
-    }
-  }
-
-  addPins(centerX: number, _pinCount: number, pinRows: number, startY: number) {
-    for (let row = 0; row < pinRows; row++) {
-      const pinCount = _pinCount + (row % 2 === 0 ? 1 : 0);
-      const rowY = startY + row * 70;
-      const spacing = 80;
-      let startX = centerX - ((pinCount - 1) / 2) * spacing;
-      for (let col = 0; col < pinCount; col++) {
-        const x = startX + col * spacing;
-        const y = rowY;
-        const pin = this.matter.add.circle(x, y, 4, {
-          isStatic: true,
-          restitution: 1.2,
-        });
-        this.pins.push(pin);
-      }
     }
   }
 
