@@ -17,7 +17,6 @@ class DefaultMap implements IGameMap {
     const wallTickness = 200;
     const thinWallTickness = 20;
 
-    const funnelLength = 300;
     const curveStartY = 3000;
     const curveEndY = 3500;
     const comebackCurveStartY = 4500;
@@ -46,7 +45,6 @@ class DefaultMap implements IGameMap {
       { isStatic: true, angle: curveRad }
     );
     // customTriangleWall2
-    const holeWidth = ctx.ballRadius * 2 + 8;
     const baseX = Math.abs(Math.cos(curveRad) * ctx.width) + wallTickness;
     const baseY = Math.abs(Math.sin(curveRad) * ctx.width) + wallTickness;
     const curveLength = comebackCurveStartY - curveEndY;
