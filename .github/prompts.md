@@ -12,7 +12,7 @@ This project is a horse racing game built using the Phaser game framework. The g
 ## File Structure
 - `src/main.ts`: Entry point of the game.
 - `src/game/scenes/`: Contains various game scenes such as `Racing.ts` for the race logic, `MainMenu.ts` for the main menu, and more.
-- `public/`: Contains static assets like images, styles, and the HTML file.
+- `docs/`: Contains static assets like images, styles, and the HTML file.
 
 ## How to Use GitHub Copilot
 - Use Copilot to generate new features, such as additional game mechanics or UI elements.
