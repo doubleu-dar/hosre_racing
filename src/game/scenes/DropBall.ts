@@ -463,6 +463,67 @@ export default class DropBallScene extends Phaser.Scene {
     nameInputBtn.style.cursor = "pointer";
     nameInputBtn.style.zIndex = "1000";
     document.body.appendChild(nameInputBtn);
+    // 맵 선택 드롭다운 추가
+    const mapSelect = document.createElement("select");
+    mapSelect.style.position = "absolute";
+    mapSelect.style.left = rect.left + 24 + inputBoxWidth + 180 + "px";
+    mapSelect.style.top = rect.bottom - 100 + "px";
+    mapSelect.style.height = "42px";
+    mapSelect.style.fontSize = "22px";
+    mapSelect.style.zIndex = "1000";
+    mapSelect.style.background = "#fff";
+    mapSelect.style.color = "#222";
+    mapSelect.style.border = "none";
+    mapSelect.style.borderRadius = "8px";
+    mapSelect.style.padding = "0 16px";
+    // 맵 옵션 추가
+    mapSelect.innerHTML = `
+      <option value="default">기본맵</option>
+      <option value="zigzag">지그재그맵</option>
+    `;
+    document.body.appendChild(mapSelect);
+    let selectedMap = "default";
+    mapSelect.onchange = (e) => {
+      selectedMap = (e.target as HTMLSelectElement).value;
+      // 맵 즉시 변경: 기존 장애물 제거 및 새 맵 생성
+      // 기존 장애물 제거
+      this.mapObstacles.walls.forEach((wall) => this.matter.world.remove(wall));
+      this.mapObstacles.pins.forEach((pin) => this.matter.world.remove(pin));
+      this.mapObstacles.crossBars.forEach((bar) =>
+        this.matter.world.remove(bar)
+      );
+      this.mapObstacles.spinningRects.forEach(({ body }) =>
+        this.matter.world.remove(body)
+      );
+      this.mapObstacles.spinningCrosses.forEach(({ bars }) =>
+        bars.forEach((bar) => this.matter.world.remove(bar))
+      );
+      this.mapObstacles.spinningTriangles.forEach(({ body }) =>
+        this.matter.world.remove(body)
+      );
+      // 장애물 상태 초기화
+      this.mapObstacles = createDefaultObstacles();
+      const mapContext = {
+        scene: this,
+        matter: this.matter,
+        leftX: this.leftX,
+        rightX: this.rightX,
+        width: this.width,
+        worldSize: this.worldSize,
+        ballRadius: this.ballRadius,
+        obstacles: this.mapObstacles,
+      };
+      if (selectedMap === "zigzag") {
+        import("./maps/zigzagMap").then((mod) => {
+          mod.default(mapContext);
+        });
+      } else {
+        import("./maps/defaultMap").then((mod) => {
+          mod.default(mapContext);
+        });
+      }
+    };
+
     // 버튼 클릭 시 이름 적용 및 UI 제거
     nameInputBtn.onclick = () => {
       const names = (nameInputBox.value || "")
@@ -478,7 +539,6 @@ export default class DropBallScene extends Phaser.Scene {
             this.matter.world.remove(ball);
           }
         });
-
         this.balls = [];
         this.ballNameTexts.forEach((t) => t.text.destroy());
         this.ballNameTexts = [];
@@ -489,6 +549,7 @@ export default class DropBallScene extends Phaser.Scene {
         nameInputBox.remove();
         nameInputLabel.remove();
         nameInputBtn.remove();
+        mapSelect.remove();
         this.cameraFollowLeader = true;
         this.gameStarted = true;
         if (this.winnerText) {
