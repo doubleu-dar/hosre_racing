@@ -1,31 +1,48 @@
-# GitHub Copilot Prompt for Horse Racing Game Project
+# GitHub Copilot Prompt for Horse Racing & Drop Ball Game Project
 
 ## Project Overview
-This project is a horse racing game built using the Phaser game framework. The game simulates a race where multiple horses compete to reach the finish line. The game includes features such as physics-based movement, collision handling, and dynamic race mechanics.
+이 프로젝트는 Phaser 게임 프레임워크를 기반으로 한 말 경주 게임과 Drop Ball(구슬 떨어뜨리기) 게임을 포함합니다. 각 게임은 물리엔진 기반의 장애물, 다양한 맵, 실시간 랭킹, 커스텀 UI 등 다양한 기능을 제공합니다.
+
+### 주요 게임 모드
+- **Horse Racing**: 여러 말이 가속도와 속도, 충돌을 기반으로 결승선을 향해 경주합니다.
+- **Drop Ball**: 여러 공이 핀, 회전 장애물, 벽 등 다양한 장애물을 통과하며 떨어집니다. 맵 구조와 장애물은 모듈화되어 다양한 맵을 선택할 수 있습니다.
 
 ## Key Features
-- **Physics Engine**: The game uses Phaser's Arcade Physics for realistic movement and collision handling.
-- **Dynamic Race Mechanics**: Horses have randomized speeds, accelerations, and movements to simulate a realistic race.
-- **Interactive Gameplay**: Players can start the race by clicking, and the game determines the winner dynamically.
-- **Customizable Track and Horses**: The track and horses are drawn programmatically, allowing for easy customization.
+- **Physics Engine**: Phaser의 Matter.js(또는 Arcade Physics)를 사용한 현실적인 움직임과 충돌 처리
+- **맵/장애물 모듈화**: 맵 구조와 장애물 배치를 클래스 및 함수로 분리, 드롭다운으로 맵 선택 가능
+- **실시간 랭킹/결과 UI**: 게임 중 실시간 순위 표시, 결과 화면, 공/말 이름 커스텀 입력 UI
+- **동적 맵 변경**: 게임 시작 전 드롭다운으로 맵을 선택하면 즉시 미리보기 및 적용 가능
+- **확장성**: 새로운 맵, 장애물, 게임 모드를 쉽게 추가할 수 있는 구조
 
 ## File Structure
-- `src/main.ts`: Entry point of the game.
-- `src/game/scenes/`: Contains various game scenes such as `Racing.ts` for the race logic, `MainMenu.ts` for the main menu, and more.
-- `docs/`: Contains static assets like images, styles, and the HTML file.
+- `src/main.ts`: 엔트리 포인트
+- `src/game/scenes/DropBall.ts`: Drop Ball 게임 로직 및 UI
+- `src/game/scenes/maps/`: 맵 생성 클래스, 장애물 유틸, 타입 정의 등
+- `src/game/scenes/Racing.ts`: 말 경주 게임 로직
+- `docs/`: 정적 웹 배포용 빌드 결과물 및 HTML, CSS, 이미지 등
 
-## How to Use GitHub Copilot
-- Use Copilot to generate new features, such as additional game mechanics or UI elements.
-- Ask Copilot to refactor existing code for better performance or readability.
-- Use Copilot to debug issues or suggest improvements in the game logic.
+## How to Use Copilot
+- 새로운 맵/장애물/게임 모드 클래스를 생성하거나, 기존 맵을 확장할 수 있습니다.
+- UI 개선, 실시간 랭킹, 결과 표시 등 인터랙션 기능을 추가할 수 있습니다.
+- 코드 리팩토링, 성능 개선, 버그 수정, 테스트 코드 생성 등 다양한 작업을 Copilot에 요청할 수 있습니다.
 
 ## Example Prompts
-- "Add a betting system where players can bet on a horse before the race starts."
-- "Implement a leaderboard to track the fastest race times."
-- "Create a new scene for displaying race statistics after the game ends."
+- "맵 선택 드롭다운에 새로운 맵을 추가하고, 맵 클래스를 생성해줘."
+- "DropBall 게임에 베팅 시스템을 추가해줘."
+- "말 경주 게임에 리플레이 기능을 구현해줘."
+- "DropBall에서 장애물 패턴을 난이도별로 분기해줘."
+- "게임 결과를 서버에 저장하는 API 연동 코드를 추가해줘."
 
 ## Notes
-- Ensure that all new features integrate seamlessly with the existing Phaser framework setup.
-- Follow best practices for game development and maintain clean, modular code.
+- Phaser의 Scene, Matter.js, UI DOM 조작 등과 잘 통합되도록 구현합니다.
+- 맵/장애물/게임 모드는 클래스 또는 함수로 모듈화하여 확장성을 유지합니다.
+- UI/UX는 웹 환경(PC/모바일)에서 모두 잘 동작하도록 합니다.
+- 외부 리소스(이미지, 사운드 등)는 라이선스를 확인 후 사용합니다.
+
 ## 말의 움직임
 Horse는 물리엔진의 가속도를 통해서 이동계산을 한다.
+
+## Drop Ball 맵 구조
+- 맵은 IGameMap 인터페이스를 구현한 클래스로 관리하며, build() 메서드에서 장애물/벽/핀 등을 배치한다.
+- 맵 선택 드롭다운에서 선택 시 즉시 맵이 갱신된다.
+- 장애물, 벽, 핀 등은 MatterJS의 Body로 관리하며, updateObstacles로 회전 등 동작을 일괄 처리한다.
