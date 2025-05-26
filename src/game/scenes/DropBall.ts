@@ -425,8 +425,7 @@ export default class DropBallScene extends Phaser.Scene {
     // 입력창
     const nameInputBox = document.createElement("textarea");
     //20개 공 기본 추가
-    nameInputBox.value =
-      "공1,공2,공3,공4,공5,공6,공7,공8,공9,공10,공11,공12,공13,공14,공15,공16,공17,공18,공19,공20";
+    nameInputBox.value = "공1*5,공2*3,공3*2,공4";
     nameInputBox.placeholder = "예: 공1,공2,공3";
     nameInputBox.style.position = "absolute";
     nameInputBox.style.left = rect.left + 24 + "px";
@@ -531,8 +530,35 @@ export default class DropBallScene extends Phaser.Scene {
         .map((s) => s.trim())
         .filter(Boolean);
       if (names.length > 0) {
-        this.ballNames = names;
-        this.ballCount = names.length;
+        const parsedNames: string[] = [];
+
+        names.forEach((name) => {
+          const match = name.match(/^(.*)\*(\d+)$/);
+          if (match) {
+            const baseName = match[1].trim();
+            const count = parseInt(match[2], 10);
+            for (let i = 0; i < count; i++) {
+              parsedNames.push(baseName);
+            }
+          } else {
+            parsedNames.push(name);
+          }
+        });
+
+        const uniqueNames: { [key: string]: number } = {};
+        this.ballNames = parsedNames.map((name) => {
+          if (uniqueNames[name] === undefined) {
+            uniqueNames[name] = 1;
+            return name;
+          } else {
+            const newName = `${name}#${uniqueNames[name]}`;
+            uniqueNames[name]++;
+            return newName;
+          }
+        });
+
+        this.ballCount = this.ballNames.length;
+
         // 기존 공 모두 파괴 (Matter에서 제거)
         this.balls.forEach(({ ball }) => {
           if (ball && ball.position) {
@@ -545,6 +571,7 @@ export default class DropBallScene extends Phaser.Scene {
         this.finishedBalls = [];
         this.resultShown = false; // 게임 재시작 시 결과 플래그 초기화
         this.dropBallsMatter();
+
         // UI 제거
         nameInputBox.remove();
         nameInputLabel.remove();
@@ -556,7 +583,6 @@ export default class DropBallScene extends Phaser.Scene {
           this.winnerText.destroy();
           this.winnerText = undefined;
         }
-        // ...existing code...
       }
     };
   }
